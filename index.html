@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deriv Lot Size Calculator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Deriv Lot Size Calculator</h1>
+
+        <div class="input-group">
+            <label for="accountBalance">Account Balance ($):</label>
+            <input type="number" id="accountBalance" value="1000" step="100">
+            <button id="fetchBalanceBtn">Fetch from Deriv</button>
+        </div>
+
+        <div class="input-group">
+            <label for="riskPercentage">Risk Percentage (%):</label>
+            <input type="number" id="riskPercentage" value="1" step="0.5" min="0.01" max="100">
+        </div>
+
+        <div class="input-group">
+            <label for="instrument">Instrument:</label>
+            <select id="instrument"></select>
+        </div>
+        <div id="instrumentInfo" class="instrument-info"></div>
+
+
+        <div class="input-group">
+            <label for="entryPrice">Entry Price:</label>
+            <input type="number" id="entryPrice" step="0.001">
+            <button id="fetchAskPriceBtn">Fetch Ask</button>
+        </div>
+
+        <div class="input-group">
+            <label for="slPrice">Stop Loss Price:</label>
+            <input type="number" id="slPrice" step="0.001">
+            <button id="fetchBidPriceBtn">Suggest Bid</button>
+        </div>
+
+        <button id="calculateBtn" class="calculate-btn">Calculate Lot Size</button>
+
+        <div id="results" class="results-area">
+            <h2>Results</h2>
+            <p id="resultLotSize"></p>
+            <p id="resultRiskAmount"></p>
+            <p id="resultMoneyAtRiskPerLot"></p>
+            <p id="resultSLDistance"></p>
+            <p id="resultRawLot"></p>
+            <p id="resultMessage" class="message"></p>
+            <p id="resultMinLotInfo" class="message warning"></p>
+        </div>
+        <div id="errorDisplay" class="error-message"></div>
+        <div id="loadingIndicator" style="display:none;">Loading...</div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

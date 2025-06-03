@@ -1,0 +1,122 @@
+
+body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f7f6;
+    color: #333;
+    display: flex;
+    justify-content: center;
+}
+
+.container {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 500px;
+}
+
+h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+.input-group {
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #555;
+}
+
+.input-group input[type="number"],
+.input-group select {
+    width: calc(100% - 22px); /* Adjust for padding/border */
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+.input-group button {
+    padding: 8px 12px;
+    margin-left: 5px;
+    border: 1px solid #3498db;
+    background-color: #3498db;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+.input-group button:hover {
+    background-color: #2980b9;
+}
+
+
+.calculate-btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    border_radius: 4px;
+    font-size: 1.1em;
+    cursor: pointer;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+.calculate-btn:hover {
+    background-color: #229954;
+}
+
+.results-area {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #e8f6f3;
+    border-left: 4px solid #1abc9c;
+}
+.results-area h2 {
+    margin-top: 0;
+    color: #16a085;
+}
+.results-area p {
+    margin: 8px 0;
+    line-height: 1.6;
+}
+#resultLotSize {
+    font-weight: bold;
+    font-size: 1.2em;
+    color: #2c3e50;
+}
+
+.message {
+    font-style: italic;
+    font-size: 0.95em;
+}
+.warning {
+    color: #e67e22;
+}
+
+.error-message {
+    color: #e74c3c;
+    background-color: #fadbd8;
+    border: 1px solid #f1948a;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 15px;
+    display: none; /* Hidden by default */
+}
+.instrument-info {
+    font-size: 0.85em;
+    color: #7f8c8d;
+    margin-top: 5px;
+    padding: 8px;
+    background-color: #ecf0f1;
+    border-radius: 3px;
+}
