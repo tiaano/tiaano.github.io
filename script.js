@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // const API_BASE_URL = 'http://127.0.0.1:8000/api'; // Your FastAPI backend URL
-    const API_BASE_URL = 'https://winning-gently-elf.ngrok-free.app/api'; // Your FastAPI backend URL
+    const API_BASE_URL = 'https://winning-gently-elf.ngrok-free.app/api'; //  Your FastAPI backend URL
 
     const accountBalanceEl = document.getElementById('accountBalance');
     const riskPercentageEl = document.getElementById('riskPercentage');
