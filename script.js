@@ -42,24 +42,40 @@ document.addEventListener('DOMContentLoaded', () => {
         loadingIndicatorEl.style.display = show ? 'block' : 'none';
     }
 
-    async function fetchApi(endpoint, options = {}) {
-        showLoading(true);
-        clearError();
-        try {
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ detail: `HTTP error! Status: ${response.status}` }));
-                throw new Error(errorData.detail || `HTTP error! Status: ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('API Fetch error:', error);
-            displayError(error.message || 'Failed to fetch from API.');
-            throw error; // Re-throw to stop further processing if needed
-        } finally {
-            showLoading(false);
+ async function fetchApi(endpoint, options = {}) {
+    showLoading(true);
+    clearError();
+    try {
+        // 1. Prepare the headers
+        const existingHeaders = options.headers || {}; // Get existing headers or an empty object
+        const newHeaders = {
+            ...existingHeaders, // Spread existing headers
+            'ngrok-skip-browser-warning': 'any_value_is_fine' // Add the ngrok bypass header
+        };
+
+        // 2. Update the options object with the new headers
+        const fetchOptions = {
+            ...options, // Spread other existing options (like method, body, etc.)
+            headers: newHeaders // Set the combined headers
+        };
+
+        // 3. Make the fetch call using the updated options
+        // Ensure API_BASE_URL is your ngrok URL (e.g., https://your-random-string.ngrok-free.app)
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, fetchOptions);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ detail: `HTTP error! Status: ${response.status}` }));
+            throw new Error(errorData.detail || `HTTP error! Status: ${response.status}`);
         }
+        return await response.json();
+    } catch (error) {
+        console.error('API Fetch error:', error);
+        displayError(error.message || 'Failed to fetch from API.');
+        throw error; // Re-throw to stop further processing if needed
+    } finally {
+        showLoading(false);
     }
+}
 
 
     async function loadInstruments() {
