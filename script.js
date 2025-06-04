@@ -3,17 +3,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_BASE_URL = 'https://winning-gently-elf.ngrok-free.app/api'; //  Your FastAPI backend URL
 
     const accountBalanceEl = document.getElementById('accountBalance');
-    const riskPercentageEl = document.getElementById('riskPercentage');
+    const riskSlider = document.getElementById('riskSlider');
+    const riskDisplay = document.getElementById('riskDisplay');
+    const sliderFill = document.getElementById('sliderFill');
     const instrumentEl = document.getElementById('instrument');
     const entryPriceEl = document.getElementById('entryPrice');
     const slPriceEl = document.getElementById('slPrice');
     const instrumentInfoEl = document.getElementById('instrumentInfo');
-
+    const currentPriceDisplay = document.getElementById('currentPriceDisplay');
+    
     const fetchBalanceBtn = document.getElementById('fetchBalanceBtn');
-    const fetchAskPriceBtn = document.getElementById('fetchAskPriceBtn');
-    const fetchBidPriceBtn = document.getElementById('fetchBidPriceBtn');
+    const fetchMarketPriceBtn = document.getElementById('fetchMarketPriceBtn');
     const calculateBtn = document.getElementById('calculateBtn');
-
+    const buyBtn = document.getElementById('buyBtn');
+    const sellBtn = document.getElementById('sellBtn');
+    
     const resultsEl = document.getElementById('results');
     const resultLotSizeEl = document.getElementById('resultLotSize');
     const resultRiskAmountEl = document.getElementById('resultRiskAmount');
@@ -25,12 +29,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorDisplayEl = document.getElementById('errorDisplay');
     const loadingIndicatorEl = document.getElementById('loadingIndicator');
 
-    let instrumentsConfig = {}; // To store instrument data from backend
+    let instrumentsConfig = {};
+    let currentDirection = 'BUY';
+
+    // Risk slider functionality
+    riskSlider.addEventListener('input', function() {
+        const value = this.value;
+        riskDisplay.textContent = value + '%';
+        sliderFill.style.width = (value / 10 * 100) + '%';
+    });
+
+    // Trade direction buttons
+    buyBtn.addEventListener('click', () => setDirection('BUY'));
+    sellBtn.addEventListener('click', () => setDirection('SELL'));
+
+    function setDirection(direction) {
+        currentDirection = direction;
+        buyBtn.classList.toggle('active', direction === 'BUY');
+        sellBtn.classList.toggle('active', direction === 'SELL');
+    }
 
     function displayError(message) {
         errorDisplayEl.textContent = message;
         errorDisplayEl.style.display = 'block';
-        resultsEl.style.display = 'none';
+        resultsEl.classList.remove('show');
     }
 
     function clearError() {
@@ -42,55 +64,50 @@ document.addEventListener('DOMContentLoaded', () => {
         loadingIndicatorEl.style.display = show ? 'block' : 'none';
     }
 
- async function fetchApi(endpoint, options = {}) {
-    showLoading(true);
-    clearError();
-    try {
-        // 1. Prepare the headers
-        const existingHeaders = options.headers || {}; // Get existing headers or an empty object
-        const newHeaders = {
-            ...existingHeaders, // Spread existing headers
-            'ngrok-skip-browser-warning': 'any_value_is_fine' // Add the ngrok bypass header
-        };
+    async function fetchApi(endpoint, options = {}) {
+        showLoading(true);
+        clearError();
+        try {
+            const existingHeaders = options.headers || {};
+            const newHeaders = {
+                ...existingHeaders,
+                'ngrok-skip-browser-warning': 'any_value_is_fine'
+            };
 
-        // 2. Update the options object with the new headers
-        const fetchOptions = {
-            ...options, // Spread other existing options (like method, body, etc.)
-            headers: newHeaders // Set the combined headers
-        };
+            const fetchOptions = {
+                ...options,
+                headers: newHeaders
+            };
 
-        // 3. Make the fetch call using the updated options
-        // Ensure API_BASE_URL is your ngrok URL (e.g., https://your-random-string.ngrok-free.app)
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, fetchOptions);
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, fetchOptions);
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ detail: `HTTP error! Status: ${response.status}` }));
-            throw new Error(errorData.detail || `HTTP error! Status: ${response.status}`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: `HTTP error! Status: ${response.status}` }));
+                throw new Error(errorData.detail || `HTTP error! Status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('API Fetch error:', error);
+            displayError(error.message || 'Failed to fetch from API.');
+            throw error;
+        } finally {
+            showLoading(false);
         }
-        return await response.json();
-    } catch (error) {
-        console.error('API Fetch error:', error);
-        displayError(error.message || 'Failed to fetch from API.');
-        throw error; // Re-throw to stop further processing if needed
-    } finally {
-        showLoading(false);
     }
-}
-
 
     async function loadInstruments() {
         try {
             const data = await fetchApi('/instruments');
             instrumentsConfig = data;
-            instrumentEl.innerHTML = ''; // Clear existing options
+            instrumentEl.innerHTML = '<option value="">Select Instrument</option>';
             for (const key in instrumentsConfig) {
                 const option = document.createElement('option');
                 option.value = key;
                 option.textContent = instrumentsConfig[key].description;
                 instrumentEl.appendChild(option);
             }
-            updateInstrumentInfo(); // Initial info display
-            updatePriceInputSteps(); // Update step for default instrument
+            updateInstrumentInfo();
+            updatePriceInputSteps();
         } catch (error) {
             displayError('Could not load instruments config.');
         }
@@ -103,7 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const stepValue = Math.pow(10, -decimals).toFixed(decimals);
             entryPriceEl.step = stepValue;
             slPriceEl.step = stepValue;
-            // Potentially update placeholder or default values if needed
         }
     }
 
@@ -127,11 +143,12 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchBalanceBtn.addEventListener('click', async () => {
         try {
             const data = await fetchApi('/balance');
-            accountBalanceEl.value = data.balance.toFixed(2);
+            const balance = data.balance.toFixed(2);
+            accountBalanceEl.textContent = `$${balance}`;
         } catch (error) { /* Error already displayed by fetchApi */ }
     });
 
-    fetchAskPriceBtn.addEventListener('click', async () => {
+    fetchMarketPriceBtn.addEventListener('click', async () => {
         const selectedKey = instrumentEl.value;
         if (!selectedKey || !instrumentsConfig[selectedKey]) {
             displayError("Please select a valid instrument first.");
@@ -140,47 +157,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const apiSymbol = instrumentsConfig[selectedKey].api_symbol;
         try {
             const data = await fetchApi(`/price/${apiSymbol}`);
-            const priceToUse = data.ask !== null ? data.ask : data.spot;
+            const priceToUse = currentDirection === 'BUY' ? 
+                (data.ask !== null ? data.ask : data.spot) : 
+                (data.bid !== null ? data.bid : data.spot);
+                
             if (priceToUse !== null) {
-                entryPriceEl.value = priceToUse.toFixed(instrumentsConfig[selectedKey].price_decimals);
+                const formattedPrice = priceToUse.toFixed(instrumentsConfig[selectedKey].price_decimals);
+                entryPriceEl.value = formattedPrice;
+                currentPriceDisplay.textContent = formattedPrice;
+                suggestStopLoss(priceToUse, currentDirection, selectedKey);
             } else {
-                displayError(`Ask/Spot price not available for ${instrumentsConfig[selectedKey].description}.`);
+                displayError(`Price not available for ${instrumentsConfig[selectedKey].description}.`);
             }
-        } catch (error) { /* Error already displayed */ }
+        } catch (error) { /* Error already handled */ }
     });
-    
-    fetchBidPriceBtn.addEventListener('click', async () => {
-        const selectedKey = instrumentEl.value;
-         if (!selectedKey || !instrumentsConfig[selectedKey]) {
-            displayError("Please select a valid instrument first.");
-            return;
-        }
-        const apiSymbol = instrumentsConfig[selectedKey].api_symbol;
-        try {
-            const data = await fetchApi(`/price/${apiSymbol}`);
-            const priceToUse = data.bid !== null ? data.bid : data.spot; // Use spot if bid is null
-            if (priceToUse !== null) {
-                // Suggest SL, don't auto-fill. Maybe put it in a placeholder or info field.
-                // For simplicity, we'll just log it or put it in an info field if we had one.
-                // slPriceEl.value = priceToUse.toFixed(instrumentsConfig[selectedKey].price_decimals);
-                alert(`Suggested SL (current Bid/Spot for ${instrumentsConfig[selectedKey].description}): ${priceToUse.toFixed(instrumentsConfig[selectedKey].price_decimals)}`);
-            } else {
-                displayError(`Bid/Spot price not available for ${instrumentsConfig[selectedKey].description}.`);
-            }
-        } catch (error) { /* Error already displayed */ }
-    });
-
 
     calculateBtn.addEventListener('click', async () => {
         clearError();
-        resultsEl.style.display = 'none'; // Hide previous results
+        resultsEl.classList.remove('show');
+
+        // Extract balance number from display text
+        const balanceText = accountBalanceEl.textContent.replace('$', '').replace(',', '');
+        const balance = parseFloat(balanceText);
 
         const payload = {
-            account_balance: parseFloat(accountBalanceEl.value),
-            risk_percentage: parseFloat(riskPercentageEl.value),
+            account_balance: balance,
+            risk_percentage: parseFloat(riskSlider.value),
             instrument_key: instrumentEl.value,
             entry_price: parseFloat(entryPriceEl.value),
-            sl_price: parseFloat(slPriceEl.value)
+            sl_price: parseFloat(slPriceEl.value),
+            direction: currentDirection
         };
 
         if (isNaN(payload.account_balance) || isNaN(payload.risk_percentage) ||
@@ -196,17 +202,60 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(payload)
             });
 
-            resultsEl.style.display = 'block';
-            resultLotSizeEl.textContent = `Recommended Lot Size: ${data.final_lot_size_formatted}`;
-            resultRiskAmountEl.textContent = `Risk Amount: $${data.risk_amount_currency.toFixed(2)}`;
-            resultMoneyAtRiskPerLotEl.textContent = `Money at Risk per 1 Lot: $${data.money_at_risk_per_lot.toFixed(2)}`;
-            resultSLDistanceEl.textContent = `SL Distance: ${data.sl_distance_price_units.toFixed(instrumentsConfig[payload.instrument_key].price_decimals)} (price units), ${data.sl_distance_ticks.toFixed(0)} (ticks)`;
-            resultRawLotEl.textContent = `Raw Calculated Lot: ${data.raw_lot_size.toFixed(8)}`;
+            resultsEl.classList.add('show');
+            resultLotSizeEl.textContent = data.final_lot_size_formatted;
+            resultRiskAmountEl.textContent = `$${data.risk_amount_currency.toFixed(2)}`;
+            resultMoneyAtRiskPerLotEl.textContent = `$${data.money_at_risk_per_lot.toFixed(2)}`;
+            resultSLDistanceEl.textContent = `${data.sl_distance_price_units.toFixed(instrumentsConfig[payload.instrument_key].price_decimals)} (${data.sl_distance_ticks.toFixed(0)} ticks)`;
+            resultRawLotEl.textContent = data.raw_lot_size.toFixed(8);
             resultMessageEl.textContent = data.message || '';
             resultMinLotInfoEl.textContent = data.actual_risk_if_min_lot_info || '';
             resultMinLotInfoEl.style.display = data.actual_risk_if_min_lot_info ? 'block' : 'none';
 
         } catch (error) { /* Error already displayed by fetchApi */ }
+    });
+
+    function suggestStopLoss(entryPrice, direction, instrumentKey) {
+        const config = instrumentsConfig[instrumentKey];
+        const defaultPips = 20;
+        const pipValue = config.tick_size * 10;
+        const slDistance = defaultPips * pipValue;
+        
+        const suggestedSL = direction === 'BUY' ? 
+            entryPrice - slDistance : 
+            entryPrice + slDistance;
+            
+        slPriceEl.value = suggestedSL.toFixed(config.price_decimals);
+    }
+
+    function validateStopLoss() {
+        const entry = parseFloat(entryPriceEl.value);
+        const sl = parseFloat(slPriceEl.value);
+        
+        if (isNaN(entry) || isNaN(sl)) return true;
+        
+        if (currentDirection === 'BUY' && sl >= entry) {
+            displayError("For BUY orders, Stop Loss must be below Entry Price");
+            return false;
+        }
+        if (currentDirection === 'SELL' && sl <= entry) {
+            displayError("For SELL orders, Stop Loss must be above Entry Price");
+            return false;
+        }
+        return true;
+    }
+
+    // Add direction change handler to validate SL
+    buyBtn.addEventListener('click', () => {
+        if (entryPriceEl.value && slPriceEl.value) {
+            validateStopLoss();
+        }
+    });
+
+    sellBtn.addEventListener('click', () => {
+        if (entryPriceEl.value && slPriceEl.value) {
+            validateStopLoss();
+        }
     });
 
     // Initial load
