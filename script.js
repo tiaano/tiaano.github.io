@@ -1,7 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // const API_BASE_URL = 'http://127.0.0.1:8000/api'; // Your FastAPI backend URL
-    const API_BASE_URL = 'https://winning-gently-elf.ngrok-free.app/api'; //  Your FastAPI backend URL
-
+    // const API_BASE_URL = 'http://127.0.0.1:8000/api';
+    // const API_BASE_URL = 'http://192.168.8.168:8000/api';
+    const API_BASE_URL = 'https://winning-gently-elf.ngrok-free.app/api'; // Your FastAPI backend URL
+    
+    // Elements
     const accountBalanceEl = document.getElementById('accountBalance');
     const riskSlider = document.getElementById('riskSlider');
     const riskDisplay = document.getElementById('riskDisplay');
@@ -27,17 +29,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultMessageEl = document.getElementById('resultMessage');
     const resultMinLotInfoEl = document.getElementById('resultMinLotInfo');
     const errorDisplayEl = document.getElementById('errorDisplay');
+    const errorMessageTextEl = document.getElementById('errorMessageText');
+    const closeErrorBtn = document.getElementById('closeErrorBtn');
     const loadingIndicatorEl = document.getElementById('loadingIndicator');
+    const successDisplayEl = document.getElementById('successDisplay');
 
     let instrumentsConfig = {};
     let currentDirection = 'BUY';
 
-    // Risk slider functionality
+    // --- Risk Slider: Load from localStorage or default to 1 ---
+    const storedRisk = localStorage.getItem('risk_percentage');
+    if (storedRisk) {
+        riskSlider.value = storedRisk;
+        riskDisplay.textContent = storedRisk + '%';
+        sliderFill.style.width = (storedRisk / 10 * 100) + '%';
+    } else {
+        riskSlider.value = 1;
+        riskDisplay.textContent = '1%';
+        sliderFill.style.width = '10%';
+    }
+
+    // --- Store risk percentage on change ---
     riskSlider.addEventListener('input', function() {
         const value = this.value;
         riskDisplay.textContent = value + '%';
         sliderFill.style.width = (value / 10 * 100) + '%';
+        localStorage.setItem('risk_percentage', value);
     });
+
+    // --- Hide balance until fetched ---
+    accountBalanceEl.textContent = 'Fetch Balance';
+    accountBalanceEl.classList.add('placeholder-balance');
+    // Optionally, hide currency until fetched
+    document.querySelector('.currency').style.display = 'none';
 
     // Trade direction buttons
     buyBtn.addEventListener('click', () => setDirection('BUY'));
@@ -50,22 +74,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function displayError(message) {
-        errorDisplayEl.textContent = message;
+        errorMessageTextEl.textContent = message;
         errorDisplayEl.style.display = 'block';
+        errorDisplayEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         resultsEl.classList.remove('show');
     }
 
     function clearError() {
-        errorDisplayEl.textContent = '';
+        errorMessageTextEl.textContent = '';
         errorDisplayEl.style.display = 'none';
     }
-    
-    function showLoading(show) {
+
+    closeErrorBtn.addEventListener('click', clearError);
+
+    function showLoading(show, message = "Loading...") {
+        loadingIndicatorEl.textContent = message;
         loadingIndicatorEl.style.display = show ? 'block' : 'none';
     }
 
-    async function fetchApi(endpoint, options = {}) {
-        showLoading(true);
+    function showBtnLoader(btnType, show) {
+        const loaders = {
+            balance: document.getElementById('balanceLoader'),
+            price: document.getElementById('priceLoader'),
+            calc: document.getElementById('calcLoader')
+        };
+        if (loaders[btnType]) {
+            loaders[btnType].style.display = show ? 'inline-block' : 'none';
+        }
+    }
+
+    async function fetchApi(endpoint, options = {}, loadingMsg = "Loading...") {
+        showLoading(true, loadingMsg);
         clearError();
         try {
             const existingHeaders = options.headers || {};
@@ -73,6 +112,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 ...existingHeaders,
                 'ngrok-skip-browser-warning': 'any_value_is_fine'
             };
+
+            // If requesting balance, add API key header if set
+            if (endpoint === '/balance') {
+                const userApiKey = getStoredApiKey();
+                if (userApiKey) {
+                    newHeaders['X-User-Api-Key'] = userApiKey;
+                }
+            }
 
             const fetchOptions = {
                 ...options,
@@ -140,18 +187,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     instrumentEl.addEventListener('change', updateInstrumentInfo);
 
+    // Balance button
     fetchBalanceBtn.addEventListener('click', async () => {
+        showBtnLoader('balance', true);
         try {
-            const data = await fetchApi('/balance');
+            const data = await fetchApi('/balance', {}, "Retrieving balance...");
             const balance = data.balance.toFixed(2);
             accountBalanceEl.textContent = `$${balance}`;
+            accountBalanceEl.classList.remove('placeholder-balance');
+            document.querySelector('.currency').textContent = data.currency;
+            document.querySelector('.currency').style.display = '';
+            displaySuccess("Balance updated successfully!");
         } catch (error) { /* Error already displayed by fetchApi */ }
+        showBtnLoader('balance', false);
     });
 
+    // Fetch price button
     fetchMarketPriceBtn.addEventListener('click', async () => {
+        showBtnLoader('price', true);
         const selectedKey = instrumentEl.value;
         if (!selectedKey || !instrumentsConfig[selectedKey]) {
             displayError("Please select a valid instrument first.");
+            showBtnLoader('price', false);
             return;
         }
         const apiSymbol = instrumentsConfig[selectedKey].api_symbol;
@@ -170,9 +227,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayError(`Price not available for ${instrumentsConfig[selectedKey].description}.`);
             }
         } catch (error) { /* Error already handled */ }
+        showBtnLoader('price', false);
     });
 
+    // Calculate button
     calculateBtn.addEventListener('click', async () => {
+        showBtnLoader('calc', true);
         clearError();
         resultsEl.classList.remove('show');
 
@@ -213,6 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resultMinLotInfoEl.style.display = data.actual_risk_if_min_lot_info ? 'block' : 'none';
 
         } catch (error) { /* Error already displayed by fetchApi */ }
+        showBtnLoader('calc', false);
     });
 
     function suggestStopLoss(entryPrice, direction, instrumentKey) {
@@ -257,6 +318,46 @@ document.addEventListener('DOMContentLoaded', () => {
             validateStopLoss();
         }
     });
+
+    // --- API Key Modal Logic ---
+    const apiKeyBtn = document.getElementById('apiKeyBtn');
+    const apiKeyModal = document.getElementById('apiKeyModal');
+    const closeApiKeyModal = document.getElementById('closeApiKeyModal');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+
+    // Store API key in localStorage for persistence
+    function getStoredApiKey() {
+        return localStorage.getItem('deriv_api_key') || '';
+    }
+    function setStoredApiKey(key) {
+        localStorage.setItem('deriv_api_key', key);
+    }
+
+    apiKeyBtn.addEventListener('click', () => {
+        apiKeyInput.value = getStoredApiKey();
+        apiKeyModal.style.display = 'flex';
+        apiKeyInput.focus();
+    });
+    closeApiKeyModal.addEventListener('click', () => {
+        apiKeyModal.style.display = 'none';
+    });
+    saveApiKeyBtn.addEventListener('click', () => {
+        setStoredApiKey(apiKeyInput.value.trim());
+        apiKeyModal.style.display = 'none';
+    });
+    // Close modal on outside click
+    window.addEventListener('click', (e) => {
+        if (e.target === apiKeyModal) apiKeyModal.style.display = 'none';
+    });
+
+    function displaySuccess(message) {
+        successDisplayEl.textContent = message;
+        successDisplayEl.style.display = 'block';
+        setTimeout(() => {
+            successDisplayEl.style.display = 'none';
+        }, 2500);
+    }
 
     // Initial load
     loadInstruments();
