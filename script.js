@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // const API_BASE_URL = 'http://127.0.0.1:8000/api';
     // const API_BASE_URL = 'http://192.168.8.168:8000/api';
     const API_BASE_URL = 'https://winning-gently-elf.ngrok-free.app/api'; // Your FastAPI backend URL
+    const API_BASE_URL = 'https://34.82.80.145:8000/api'; // Your Render backend URL
     
     // Elements
     const accountBalanceEl = document.getElementById('accountBalance');
